@@ -1,0 +1,646 @@
+
+MASTER BUILD GUIDE
+WiFi CSI 3D Room Mapper
+Hardware Setup  +  Python Software  +  3D Visualization
+
+Hardware Phase
+• ESP32 Dev Board (receiver)
+• ESP-12F / NodeMCU (transmitter)
+• USB Power Banks (no wires needed)
+• Arduino IDE + ESP-IDF firmware	Software Phase
+• Python 3.10+ with numpy/scipy
+• Real WiFi capture (Npcap + Scapy)
+• 3D voxel reconstruction engine
+• Animated slice heatmap viewer
+
+Start to finish estimated time:  2 – 4 hours  (hardware) +  30 minutes  (software)
+Beginner friendly. Every command and wire explained.
+
+HARDWARE  ·  PHASE H-5
+Programming the Receiver
+Flash the CSI capture firmware to the ESP32
+
+The ESP32 receiver firmware connects to the CSI_MAPPER WiFi hotspot, enables the chip's hardware CSI extraction feature, and streams the CSI data over the USB serial port to your laptop in real time.
+
+Step 1 — Create a New ESP-IDF Project in VS Code
+
+1.	Open VS Code.
+2.	Press Ctrl + Shift + P to open the command palette.
+3.	Type: ESP-IDF: New Project and press Enter.
+4.	Name the project: csi_receiver.
+5.	Target chip: select ESP32.
+6.	Choose a folder on your Desktop to save it.
+7.	Choose template: template-app.
+
+
+Step 2 — Replace the Main Code
+
+In VS Code's file explorer (left sidebar), open:   csi_receiver → main → app_main.c
+Delete ALL existing content. Then paste this entire firmware:
+
+  ESP32 CSI Receiver Firmware — paste into app_main.c
+
+#include <stdio.h>
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "lwip/sockets.h"
+
+#define WIFI_SSID    "CSI_MAPPER"
+#define WIFI_PASS    "12345678"
+#define WIFI_CHANNEL  1
+
+static const char *TAG = "CSI_RX";
+static bool wifi_connected = false;
+
+// Called for EVERY received packet — prints CSI to serial
+void csi_callback(void *ctx, wifi_csi_info_t *data) {
+    if (!data || !data->buf) return;
+    int8_t *buf = data->buf;
+    int     len = data->len;
+
+    printf("CSI_DATA,%llu,%d,%d,",
+           (unsigned long long)esp_timer_get_time(),
+           data->rx_ctrl.rssi,
+           len / 2);
+
+    for (int i = 0; i < len; i++) {
+        if (i < len - 1) printf("%d,", buf[i]);
+        else             printf("%d",  buf[i]);
+    }
+    printf("\n");
+}
+
+static void wifi_event_handler(void *arg, esp_event_base_t base,
+                               int32_t id, void *data) {
+    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START)
+        esp_wifi_connect();
+    else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        ESP_LOGI(TAG, "Connected. CSI starting...");
+        wifi_connected = true;
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_connected = false;
+        esp_wifi_connect();
+    }
+}
+
+void app_main(void) {
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase(); nvs_flash_init();
+    }
+
+    esp_netif_init();
+    esp_event_loop_create_default();
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
+
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                               wifi_event_handler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                               wifi_event_handler, NULL);
+
+    wifi_config_t sta_cfg = {
+        .sta = { .ssid = WIFI_SSID, .password = WIFI_PASS,
+                 .channel = WIFI_CHANNEL }
+    };
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_set_config(WIFI_IF_STA, &sta_cfg);
+    esp_wifi_start();
+
+    int retries = 0;
+    while (!wifi_connected && retries < 30) {
+        vTaskDelay(pdMS_TO_TICKS(500)); retries++;
+    }
+    if (!wifi_connected) {
+        ESP_LOGE(TAG, "Failed to connect. Check SSID/password.");
+        return;
+    }
+
+    // ── Enable CSI capture ──────────────────────────────────────
+    wifi_csi_config_t csi_cfg = {
+        .lltf_en           = true,
+        .htltf_en          = true,
+        .stbc_htltf2_en    = true,
+        .ltf_merge_en      = true,
+        .channel_filter_en = false,
+        .manu_scale        = false,
+    };
+    esp_wifi_set_csi_config(&csi_cfg);
+    esp_wifi_set_csi_rx_cb(csi_callback, NULL);
+    esp_wifi_set_csi(true);
+
+    ESP_LOGI(TAG, "CSI active. Streaming data...");
+    while (1) { vTaskDelay(pdMS_TO_TICKS(10000)); }
+}
+
+
+
+
+Step 3 — Fix the CMakeLists.txt
+
+Open the file:   main/CMakeLists.txt   and make sure it looks exactly like this:
+
+  main/CMakeLists.txt should contain only these two lines
+
+idf_component_register(SRCS "app_main.c"
+                       INCLUDE_DIRS ".")
+
+
+Step 4 — Enable WiFi CSI in SDK Config
+
+8.	Press Ctrl + Shift + P → type: ESP-IDF: SDK Configuration editor.
+9.	In the search box that appears, type: CSI.
+10.	Find the option: WiFi CSI under Component config → WiFi.
+11.	Enable it by clicking the checkbox.
+12.	Click Save.
+
+Step 5 — Build and Flash
+
+13.	Connect ESP32 to your laptop via USB.
+14.	Ctrl + Shift + P → ESP-IDF: Select Port to Use → choose the ESP32 COM port.
+15.	Ctrl + Shift + P → ESP-IDF: Build your project. Wait 2–5 minutes.
+16.	Ctrl + Shift + P → ESP-IDF: Flash your project. Wait 30 seconds.
+17.	Ctrl + Shift + P → ESP-IDF: Monitor your device. You should see:
+
+  Expected monitor output — CSI_DATA lines confirm everything is working
+
+I (1234) CSI_RX: Connected. CSI starting...
+I (1456) CSI_RX: CSI active. Streaming data...
+CSI_DATA,1234567890,-55,52,3,-2,5,-1,7,4,2,-3,8,1,...
+CSI_DATA,1234567901,-54,52,4,-1,6,-2,8,3,1,-4,7,2,...
+
+
+✅  TIP
+If you don't see CSI_DATA lines: make sure the NodeMCU transmitter is powered on
+and broadcasting. The ESP32 must connect to the 'CSI_MAPPER' WiFi to receive packets.
+
+ 
+HARDWARE  ·  PHASE H-6
+Testing the Connection
+Verify the full hardware pipeline works before collecting real data
+
+Before spending time collecting room data, verify the whole system end-to-end. This takes about 5 minutes and catches problems early.
+
+Test Checklist
+
+☐  NodeMCU transmitter is powered from Power Bank #1  —  LED is blinking or solid
+☐  ESP32 receiver is connected to laptop via USB cable  —  appears in Device Manager under Ports
+☐  ESP-IDF Monitor is open in VS Code  —  showing CSI_DATA lines scrolling
+☐  CSI_DATA lines appear more than once per second  —  means connection is active
+☐  RSSI values are between -20 and -90 dBm  —  e.g. -55 is a good value
+
+What Good Output Looks Like
+
+  Expected — lines scrolling fast, RSSI values between -20 and -90
+
+# Each line = one CSI frame. Should appear 10-50 times per second.
+# Format: CSI_DATA, timestamp_us, rssi_dBm, num_subcarriers, IQ values...
+
+CSI_DATA,1000000,-52,52,3,-2,5,-1,7,4,2,-3,8,1,5,-2,4,0,6,-1,...
+CSI_DATA,1010000,-53,52,4,-1,6,-2,8,3,1,-4,7,2,6,-1,3,1,5,-2,...
+CSI_DATA,1020000,-51,52,2,-3,4,-2,6,5,3,-2,9,0,4,-3,5,1,7,-1,...
+
+
+  Problems — if you see these, check the troubleshooting in Appendix C
+
+# BAD — if you see this, the ESP32 is not connecting:
+E (15000) CSI_RX: Failed to connect. Check SSID/password.
+
+# BAD — if you see this, the transmitter isn't running:
+W (500) wifi:no AP found
+
+
+Test: Move the ESP32, Watch RSSI Change
+
+Keep the ESP-IDF Monitor open. Move the ESP32 receiver 1 metre further from the transmitter. The RSSI value in each CSI_DATA line should decrease (become more negative — e.g. -55 → -65). Move it closer and RSSI should increase. If RSSI changes with distance, your hardware is working perfectly.
+ 
+HARDWARE  ·  PHASE H-7
+Setting Up the Room Grid
+Preparing the physical space for your mapping session
+
+The room grid is what turns individual CSI measurements into a map. You mark positions on the floor, capture data at each one, and the software interpolates between them to build the 3D volume.
+
+Step 1 — Measure Your Room
+
+18.	Measure the floor dimensions: width (left-right) and depth (front-back) in metres.
+19.	Measure the ceiling height.
+20.	Write these down: Width = ___m   Depth = ___m   Height = ___m
+
+Step 2 — Choose Grid Spacing
+
+Grid Spacing	Total Positions (5x4m room)	Quality	Time Required
+1.0 metre	5 × 4 = 20 positions	Good for beginners	~10 minutes
+0.5 metre	10 × 8 = 80 positions	Much better detail	~40 minutes
+0.25 metre	20 × 16 = 320 positions	Research quality	~2.5 hours
+
+✅  TIP
+Start with 1.0 metre spacing. Once you've done your first session and seen the results,
+redo it with 0.5 metre spacing for a much more detailed map.
+
+
+Step 3 — Mark the Grid on the Floor
+
+21.	Start from the front-left corner of the room. This is position row_0_col_0.
+22.	Place a piece of masking tape at each grid intersection. Label each with a marker: r0c0, r0c1, r1c0, etc.
+23.	The transmitter (NodeMCU on Power Bank #1) goes in one corner. Mark that corner TX. It stays there for the entire session.
+24.	Elevate the transmitter to about 1 metre height using a box, shelf, or chair.
+
+  Your room grid — mark each + on the floor with tape
+
+  ROOM FLOOR (example: 5m wide, 4m deep, 1m grid spacing)
+
+  TX corner                          BACK WALL
+  +───────+───────+───────+───────+───────+
+  | r0c0  | r0c1  | r0c2  | r0c3  | r0c4  |
+  +───────+───────+───────+───────+───────+
+  | r1c0  | r1c1  | r1c2  | r1c3  | r1c4  |
+  +───────+───────+───────+───────+───────+
+  | r2c0  | r2c1  | r2c2  | r2c3  | r2c4  |
+  +───────+───────+───────+───────+───────+
+  | r3c0  | r3c1  | r3c2  | r3c3  | r3c4  |
+  +───────+───────+───────+───────+───────+
+  FRONT WALL
+
+  Each + = a masking tape mark on your floor
+
+ 
+HARDWARE  ·  PHASE H-8
+Collecting CSI Data
+The walk-around session — capturing data at every grid position
+
+⚠️  IMPORTANT
+CLOSE the ESP-IDF Monitor in VS Code before running the Python collection script.
+Two programs cannot use the same serial port simultaneously. If you forget, the
+Python script will crash with a 'port already in use' error.
+
+
+Step 1 — Set Up the Collection Script
+
+Open Notepad and paste the following Python script. Save it as collect_data.py on your Desktop.
+
+  collect_data.py — save this to your Desktop
+
+import serial, time, os
+
+# ── CONFIGURE THESE TWO LINES ──────────────────────────────────
+SERIAL_PORT      = 'COM4'    # Your ESP32 COM port from Device Manager
+PACKETS_PER_POINT = 200      # Frames to collect at each position
+# ────────────────────────────────────────────────────────────────
+
+SAVE_FOLDER = 'csi_data'
+os.makedirs(SAVE_FOLDER, exist_ok=True)
+
+def collect_point(row, col, ser):
+    filename = os.path.join(SAVE_FOLDER, f'r{row:02d}_c{col:02d}.csv')
+    print(f'Collecting row={row} col={col} → {filename}')
+    packets = []
+    ser.reset_input_buffer()
+    while len(packets) < PACKETS_PER_POINT:
+        line = ser.readline().decode('utf-8', errors='ignore').strip()
+        if line.startswith('CSI_DATA'):
+            packets.append(line)
+    with open(filename, 'w') as f:
+        f.write('timestamp,rssi,n_subcarriers,iq_values\n')
+        for pkt in packets:
+            f.write(pkt + '\n')
+    print(f'  Saved {len(packets)} packets.')
+
+ser = serial.Serial(SERIAL_PORT, 115200, timeout=5)
+time.sleep(2)
+print('Serial connected. Starting data collection...')
+
+rows = int(input('How many ROWS in your grid? '))
+cols = int(input('How many COLS in your grid? '))
+
+for r in range(rows):
+    for c in range(cols):
+        input(f'\nPlace ESP32 at row={r}, col={c}. Press Enter when ready...')
+        collect_point(r, c, ser)
+
+ser.close()
+print('\nData collection complete! Files saved in: csi_data/')
+
+
+Step 2 — Install pyserial
+
+Open Command Prompt and run:
+
+
+$ pip install pyserial
+
+
+Step 3 — Run the Session
+
+With the NodeMCU transmitter powered, ESP32 plugged into laptop, run:
+
+  Run the script and follow the prompts
+
+$ python collect_data.py
+
+# It will ask:
+How many ROWS in your grid? 4
+How many COLS in your grid? 5
+
+# Then for each position:
+Place ESP32 at row=0, col=0. Press Enter when ready...
+Collecting row=0 col=0 → csi_data/r00_c00.csv
+  Saved 200 packets.
+
+Place ESP32 at row=0, col=1. Press Enter when ready...
+
+
+Best Practices During Collection
+
+Practice	Why it Matters
+Stand 0.5m+ away from ESP32 during capture	Your body absorbs WiFi — you'd create a 'person shadow' in the data
+Hold the ESP32 at the same height at every position (use a box)	Mixing heights creates inconsistent vertical data
+Nobody else walks around during collection	Moving people change the RF field between measurements
+Don't move the NodeMCU transmitter at all	Even 5cm of transmitter movement makes all measurements inconsistent
+Close windows during collection	Outdoor weather changes the RF environment over time
+Collect with furniture in its normal position	Furniture shows up in the map — this is the whole point!
+
+After Collection
+
+When the script finishes, you'll have a folder called csi_data on your Desktop containing files like r00_c00.csv, r00_c01.csv, etc. These are your raw CSI measurements. The next phase (Software Phase S-6) will turn them into a 3D heatmap.
+  ━━━  SOFTWARE PHASE BEGINS  ━━━
+ 
+SOFTWARE  ·  PHASE S-1
+Installing Python
+The programming language that runs all the CSI processing
+
+Python is already installed if you are coming from Phase H-2. Run this check first:
+
+
+$ python --version
+Python 3.12.3    ← good, any 3.10+ is fine
+
+
+If you see this, skip to Phase S-2. If not, install Python now:
+
+Install Python from python.org
+
+25.	Go to python.org and click the yellow Download button.
+26.	Run the downloaded .exe file.
+⚠️  IMPORTANT
+BEFORE clicking Install Now — look at the bottom of the installer window.
+CHECK THE BOX that says 'Add Python to PATH'.
+This box is NOT checked by default. If you miss it, Python will not work from Command Prompt.
+
+
+27.	Click Install Now.
+28.	When you see 'Setup was successful', click Close.
+29.	Open Command Prompt (Windows key → type cmd → Enter). Verify:
+
+
+$ python --version
+Python 3.12.3
+
+$ pip --version
+pip 24.0 from C:\Users\...
+
+
+✅  TIP
+If Command Prompt shows 'python is not recognized', restart your computer and try again.
+
+ 
+
+SOFTWARE  ·  PHASE S-3
+Running the Simulation
+See your first 3D heatmap instantly — no hardware required
+
+The simulation generates physically accurate fake CSI data using real radio physics equations. Run this first to confirm your Python setup works before touching any hardware integration.
+
+Run It
+
+In Command Prompt inside the csi_mapper folder:
+
+
+$ python main.py --mode simulate
+
+# Or with your real room dimensions:
+$ python main.py --mode simulate --room 5x4x2.5
+#                                         ^ width x depth x height in metres
+
+
+What You'll See in the Terminal
+
+
+============================================================
+  WiFi CSI 3D Room Mapper
+============================================================
+  Mode  : SIMULATION
+  Room  : 5.0m x 4.0m x 2.5m
+  Grid  : 20x16x10 voxels
+============================================================
+
+[PIPELINE] Generating synthetic CSI data...
+  Generated 100/800 frames...
+  Generated 800/800 frames.  Done.
+
+[PIPELINE] Step 1/3 - Signal Processing...
+  Processed 800/800 frames successfully.
+
+[PIPELINE] Step 2/3 - 3D Room Reconstruction...
+  Volume shape: (20, 16, 10)
+
+[PIPELINE] Step 3/3 - Launching 3D Animated Slice Viewer...
+
+
+The Visualization Window
+
+A dark window with 4 panels opens and animates automatically:
+
+Panel	What You're Looking At	What It Sweeps
+Top Left — Floor Plan (XY)	Bird's eye view, looking down from ceiling	Sweeps from floor height → ceiling height
+Top Middle — Front Section (XZ)	Vertical slice, front-to-back view	Slice moves from front wall → back wall
+Top Right — Side Section (YZ)	Vertical slice, left-to-right view	Slice moves left wall → right wall
+Bottom — Overview	All three middle slices side-by-side for reference	Static overview
+
+Color in heatmap	RF intensity	What's physically there
+Black / Dark purple	Low	Open space — clean direct signal path
+Blue / Cyan	Moderate	Some reflections — moderate distance from walls
+Green / Yellow	High	Strong reflections — near walls or furniture
+White / Bright yellow	Maximum	Wall surface, corner, or transmitter location
+ 
+SOFTWARE  ·  PHASE S-4
+Installing Npcap
+Windows WiFi packet capture driver for real RF sensing
+
+💡  WHAT IS THIS?
+Npcap is a Windows driver that lets your WiFi card listen to ALL radio frames in the air,
+not just the ones addressed to you. This is called 'monitor mode' or passive packet capture.
+
+Your router already broadcasts beacon frames 10 times per second in every direction.
+Npcap lets Python read those frames — including the signal strength (RSSI) from each one.
+
+This is the same driver used by Wireshark, the industry-standard network analysis tool.
+It is completely safe and legal on your own network.
+
+
+Step 1 — Download Npcap
+
+30.	Go to: npcap.com and click 'Download Npcap'.
+31.	Download the .exe installer (e.g. npcap-1.79.exe).
+⚠️  IMPORTANT
+Download ONLY from npcap.com. Do NOT use the old 'WinPcap' — it is discontinued.
+
+
+Step 2 — Install Npcap
+
+32.	Right-click the downloaded .exe → Run as administrator.
+33.	Click 'I Agree' on the license screen.
+34.	On the options screen, check this box: Install Npcap in WinPcap API-compatible Mode. Leave all other options at default.
+35.	Click Install. Wait ~30 seconds.
+36.	Click Finish. No restart needed.
+
+Step 3 — Find Your WiFi Interface Name
+
+Open PowerShell (Windows key → type powershell → Enter) and run:
+
+
+$ Get-NetAdapter | Select-Object Name, InterfaceDescription, Status
+
+# You'll see something like:
+Name       InterfaceDescription                      Status
+----       --------------------                      ------
+Wi-Fi      Intel(R) Wi-Fi 6 AX201 160MHz             Up
+Ethernet   Realtek PCIe GbE Family Controller        Disconnected
+
+
+The one showing Status = Up with 'WiFi' or 'Wireless' in the description is your interface. The Name column (e.g. Wi-Fi) is what you'll use in the Python command. Write it down.
+ 
+SOFTWARE  ·  PHASE S-5
+Real WiFi Capture
+Capturing your room's actual RF environment
+
+⚠️  IMPORTANT
+MUST run Command Prompt as Administrator for real capture.
+Right-click 'Command Prompt' → 'Run as administrator' → Yes.
+Regular (non-admin) Command Prompt gives a PermissionError and captures nothing.
+
+
+Quick Test — 15 Second Capture
+
+Open admin Command Prompt in the csi_mapper folder, then:
+
+
+$ python main.py --mode capture --interface "Wi-Fi" --duration 15
+
+# Replace Wi-Fi with your interface name if different
+# Expected output:
+[CAPTURE] 50 frames  | elapsed: 5.1s | RSSI: -52.3 dBm | MAC: aa:bb:cc:...
+[CAPTURE] 100 frames | elapsed: 10.2s | RSSI: -54.1 dBm | MAC: aa:bb:cc:...
+[CAPTURE] Capture complete. Total frames: 142
+
+
+✅  TIP
+Seeing 0 frames? Check: (1) Npcap installed, (2) running as Administrator,
+(3) interface name matches exactly. Use quotes around the name: --interface "Wi-Fi"
+
+
+Full 60-Second Room Capture
+
+
+$ python main.py --mode capture --interface "Wi-Fi" --duration 60
+
+
+After 60 seconds, the data is processed and the 3D animated heatmap opens automatically.
+
+Guided Walk-Around Capture (Best Results)
+
+For a proper spatial map, use the guided position collector. This prompts you to move to each grid position and captures at each one:
+
+
+$ python tools/collect_positions.py --rows 4 --cols 5 --room 5x4x2.5 --interface "Wi-Fi"
+
+# The tool will guide you:
+[POS 1/4, 1/5]
+Move to: x=0.00m from left wall, y=0.00m from front wall
+Press Enter when ready to capture for 8s...
+
+# After all positions complete:
+[DONE] Session saved to: room_capture.pkl
+Visualize with: python main.py --mode load --file room_capture.pkl
+
+ 
+SOFTWARE  ·  PHASE S-6
+Converting ESP32 Data
+Turn your hardware collection into a 3D map
+
+If you did the hardware phases and collected CSI data with the ESP32, this phase converts those CSV files directly into the 3D visualization. This gives the best quality map — real hardware CSI with genuine IQ values from the ESP32 chip.
+
+Step 1 — Locate Your csi_data Folder
+
+Your csi_data folder was created by collect_data.py in Phase H-8. It contains files like r00_c00.csv, r00_c01.csv, etc.
+
+37.	Find the csi_data folder (check your Desktop or wherever you ran the script).
+38.	Copy the entire csi_data folder into the csi_mapper folder on your Desktop.
+39.	Result: csi_mapper/csi_data/ should now exist.
+
+Step 2 — Run the Converter
+
+Open Command Prompt inside csi_mapper. Replace 5x4x2.5 with your room dimensions:
+
+
+$ python tools/esp32_to_pkl.py --input csi_data --room 5x4x2.5
+
+# Output:
+[CONVERT] Found 20 CSV files -> 4x5 grid
+  r=0 c=0 -> (0.00, 0.00, 1.00)m -- 200 frames
+  r=0 c=1 -> (1.25, 0.00, 1.00)m -- 200 frames
+  ...
+[CONVERT] Total frames: 4,000
+[CONVERT] Session saved to: esp32_session.pkl
+
+Now run:
+  python main.py --mode load --file esp32_session.pkl
+
+
+Step 3 — Visualize
+
+
+$ python main.py --mode load --file esp32_session.pkl
+
+
+The animated 3D cross-section heatmap opens. This is your room. Since this used real ESP32 hardware CSI, the map is a genuine RF measurement of your physical space.
+ 
+SOFTWARE  ·  PHASE S-7
+Reading Your 3D Heatmap
+Understanding what every color and pattern means
+
+What the Animation Shows
+
+The animation sweeps through three axes of the 3D room volume in a continuous loop:
+
+Animation Phase	What You See	Look For
+Height sweep (floor → ceiling)	Floor plan view from above. Slice moves upward.	Walls at edges always bright. Transmitter corner brightest.
+Depth sweep (front → back)	Front cross-section. Slice moves toward back wall.	Floor and ceiling bright. Furniture blobs in the middle.
+Width sweep (left → right)	Side cross-section. Slice moves across the room.	Both walls bright. Open center darker.
+
+Pattern Recognition Guide
+
+Pattern in heatmap	Physical cause
+Bright band around entire edge of floor plan	All four walls — radio waves reflect strongly off flat surfaces
+Extra-bright spots at floor plan corners	Wall corners = maximum reflections from two surfaces simultaneously
+One corner much brighter than others	Your transmitter is in or near that corner
+Dark oval in the center of the floor plan	Open floor space — clean line-of-sight signal, few reflections
+Bright blob floating in the middle of a slice	A large piece of furniture (desk, wardrobe, shelving unit)
+Bright horizontal band in cross-section	Floor or ceiling surface reflection
+Gradient brightening toward one side	Transmitter is on that side — signal decays with distance
+Asymmetric pattern left/right	Room is not empty — objects on one side create asymmetry
+
+How to Improve Weak Results
+
+•	More packets per position — change PACKETS_PER_POINT to 500 in collect_data.py
+•	Finer grid — use 0.5m spacing instead of 1.0m for much better spatial detail
+•	Capture when the room is empty — people absorb RF and create false shadows
+•	Don't move while collecting — even shifting your weight changes the measurement
+•	More positions near walls — wall areas benefit most from close-up measurements

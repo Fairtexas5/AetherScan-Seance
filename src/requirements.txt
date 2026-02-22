@@ -1,0 +1,27 @@
+# CSI Room Mapper — Python Requirements
+# Install: pip install -r requirements.txt
+
+# Pipeline orchestration (no LLM required)
+langgraph>=0.2.0
+
+# Local AI — Ollama client (no API key, runs on CPU)
+langchain-ollama>=0.1.0
+langchain-core>=0.2.0
+
+# Hardware & signal processing
+pyserial>=3.5
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+
+# 3D Interactive Visualization (Plotly)
+plotly>=5.18.0
+
+# macOS WiFi capture via Wireshark/tshark  (--mode capture)
+# Requires: brew install --cask wireshark
+# OR:       https://www.wireshark.org/download.html
+pyshark>=0.6.0
+
+# NOTE: scikit-learn NOT required (using pure LLM anomaly detection)
+# NOTE: Npcap is Windows-only — pyshark/tshark is used on macOS instead
