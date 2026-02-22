@@ -91,10 +91,10 @@ csi_hotspot/
 ```mermaid
 flowchart TD
     START(["python main.py"])
-    SETUP["node_setup Auto-detect serial port\nCreate csi_data/ folder\nPrint grid info"]
-    COLLECT["node_collect_point Open serial port\nFlush stale data\nCollect N packets\nShow pkt/s + ETA"]
-    AIVAL["node_ai_validate_point Statistical check:\n• ≥50 packets\n• RSSI in range\n• Variance OK\nLLM confirmation via Ollama"]
-    FAIL{{"✗ FAIL\n(retry < 3)"}}
+    SETUP["node_setup Auto-detect serial port<br>Create csi_data/ folder<br>Print grid info"]
+    COLLECT["node_collect_point Open serial port<br>Flush stale data<br>Collect N packets<br>Show pkt/s + ETA"]
+    AIVAL["node_ai_validate_point Statistical check:<br>• ≥50 packets<br>• RSSI in range<br>• Variance OK<br>LLM confirmation via Ollama"]
+    FAIL{{"✗ FAIL<br>(retry < 3)"}}
     PASS{{"✓ PASS"}}
     ANOMALY["node_ai_anomaly_detection Compute stats for point, Compare to all prior points, Ask LLM: normal or anomalous?, Print explanation"]
     PREVIEW["node_live_preview Re-generate partial heatmap PNG preview (shows progress so far)"]
@@ -118,10 +118,10 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    RAW["Raw serial line\nCSI_DATA,23503...,\n-50,64,0,0,13,-12,..."]
-    VAL["serial_utils.py\nvalidate_csi_line()\n• starts with CSI_DATA?\n• ≥ 8 fields?\n• numeric RSSI?"]
-    PARSE["csi_parser.py\nparse_line()\n• split fields\n• IQ = fields[6:]\n• amplitude = √(I²+Q²)"]
-    OUT["ParsedResult dict\n────────────────\ntimestamp_us\nrssi\nn_sub\nextra1, extra2\niq_pairs (list)\namplitude (ndarray)"]
+    RAW["Raw serial line<br>CSI_DATA,23503...,<br>-50,64,0,0,13,-12,..."]
+    VAL["serial_utils.py<br>validate_csi_line()<br>• starts with CSI_DATA?<br>• ≥ 8 fields?<br>• numeric RSSI?"]
+    PARSE["csi_parser.py<br>parse_line()<br>• split fields<br>• IQ = fields[6:]<br>• amplitude = √(I²+Q²)"]
+    OUT["ParsedResult dict<br>────────────────<br>timestamp_us<br>rssi<br>n_sub<br>extra1, extra2<br>iq_pairs (list)<br>amplitude (ndarray)"]
 
     RAW --> VAL
     VAL -- invalid → None --> SKIP(["skip"])
@@ -146,7 +146,7 @@ flowchart TD
 
     V -- "✓ PASS / ✗ FAIL" --> PIPE["LangGraph pipeline"]
     AN -- "NORMAL / ANOMALOUS + reason sentence" --> PIPE
-    IN -- "Plain-English\nreport → ai_report.txt" --> PIPE
+    IN -- "Plain-English<br>report → ai_report.txt" --> PIPE
 ```
 
 ---
@@ -195,15 +195,15 @@ python main.py --mode load --file esp32_session.pkl
 
 ```mermaid
 flowchart LR
-    PIPE["Pipeline\nCompletes"]
+    PIPE["Pipeline<br>Completes"]
 
-    P1["csi_data/\nr00_c00.csv ... ← raw packets per cell"]
-    P2["output/room_heatmap_final.png\n← Matplotlib 2D heatmap (cm axes)"]
-    P3["output/room_3d.html\n← Plotly 3D voxel viewer"]
-    P4["output/csi_2d_heatmap.html\n← Interactive 2D Plotly heatmap"]
-    P5["output/csi_3d_surface.html\n← 3D surface heatmap"]
-    P6["output/csi_3d_room.html\n← 3D room structure + measurement points"]
-    P7["output/ai_report.txt\n← Plain-English AI interpretation"]
+    P1["csi_data/<br>r00_c00.csv ... ← raw packets per cell"]
+    P2["output/room_heatmap_final.png<br>← Matplotlib 2D heatmap (cm axes)"]
+    P3["output/room_3d.html<br>← Plotly 3D voxel viewer"]
+    P4["output/csi_2d_heatmap.html<br>← Interactive 2D Plotly heatmap"]
+    P5["output/csi_3d_surface.html<br>← 3D surface heatmap"]
+    P6["output/csi_3d_room.html<br>← 3D room structure + measurement points"]
+    P7["output/ai_report.txt<br>← Plain-English AI interpretation"]
 
     PIPE --> P1
     PIPE --> P2
