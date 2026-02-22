@@ -65,7 +65,7 @@ csi_hotspot/
     │   ├── csi_visualizer.py  ← Plotly 2D/3D charts
     │   ├── visualizer_3d.py   ← Plotly 3D voxel viewer
     │   ├── simulator.py       ← Synthetic CSI (no hardware)
-    │   └── capture_macos.py   ← WiFi sniff via Wireshark
+    │   └── capture_macos.py   ← WiFi sniff via Wireshark/esp32
     │
     └── tools/
         ├── collect_positions.py  ← Guided walk-around capture
@@ -120,7 +120,7 @@ Follow the on-screen prompts — carry the ESP32 to each grid position, press En
 | `python main.py` | Full AI pipeline (ESP32 required) |
 | `python main.py --mode simulate --room 500x400x250` | Synthetic data, no hardware |
 | `python main.py --mode visualize --room 500x400x250` | Build Plotly charts from collected CSVs |
-| `python main.py --mode capture --interface en0` | WiFi sniff via Wireshark (macOS) |
+| `python main.py --mode capture --interface en0` | WiFi sniff via esp32 (macOS) |
 | `python main.py --mode load --file session.pkl` | Load + view a saved session |
 
 ---
