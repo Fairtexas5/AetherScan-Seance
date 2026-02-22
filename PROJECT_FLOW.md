@@ -134,18 +134,18 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    OLLAMA[" Ollama Server\nlocalhost:11434\nphi3.5:latest"]
+    OLLAMA[" Ollama Server (localhost:11434) phi3.5:latest"]
 
-    V["ai_validator.py: Is the data quality, good enough to keep?, Re-ask up to 3×"]
-    AN["ai_anomaly.py: Is this point unusual, compared to the rest?, What might cause it?"]
-    IN["ai_interpreter.py: Interpret the full room:, • High RF zones, • Low RF zones, • Anomalies found, • 2 improvement tips"]
+    V["ai_validator.py: Is the data quality<br> good enough to keep?<br>Re-ask up to 3×"]
+    AN["ai_anomaly.py: Is this point unusual<br> compared to the rest?<br>What might cause it?"]
+    IN["ai_interpreter.py: Interpret the full room:<br> • High RF zones<br> • Low RF zones<br> • Anomalies found<br> • 2 improvement tips"]
 
     OLLAMA --> V
     OLLAMA --> AN
     OLLAMA --> IN
 
     V -- "✓ PASS / ✗ FAIL" --> PIPE["LangGraph pipeline"]
-    AN -- "NORMAL / ANOMALOUS\n+ reason sentence" --> PIPE
+    AN -- "NORMAL / ANOMALOUS + reason sentence" --> PIPE
     IN -- "Plain-English\nreport → ai_report.txt" --> PIPE
 ```
 
@@ -157,7 +157,7 @@ flowchart TD
 flowchart LR
     MAIN["python main.py"]
 
-    M1["(no flag) AI Pipeline Mode\nFull LangGraph run\nESP32 required"]
+    M1["(no flag) AI Pipeline Mode Full LangGraph run ESP32 required"]
     M2["--mode simulate Synthetic CSI data No hardware needed Good first test"]
     M3["--mode capture macOS WiFi sniff via Wireshark/tshark sudo required"]
     M4["--mode load Load saved .pkl file and view in 3D viewer"]
