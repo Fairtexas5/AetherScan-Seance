@@ -1,4 +1,4 @@
-# 📡 ESP32 CSI Room Mapper — Project Flow
+# ESP32 CSI Room Mapper — Project Flow
 
 ---
 
