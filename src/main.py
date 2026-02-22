@@ -40,14 +40,9 @@ import os
 import sys
 import argparse
 
-# ── Ensure project root on sys.path ─────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
-
-# ═══════════════════════════════════════════════════════
-#  Parse room dimensions helper
-# ═══════════════════════════════════════════════════════
 
 def _parse_room(room_str: str) -> tuple:
     """'500x400x250' cm → (5.0, 4.0, 2.5) m internally"""
@@ -60,11 +55,6 @@ def _parse_room(room_str: str) -> tuple:
         raise argparse.ArgumentTypeError(
             f"Invalid room format '{room_str}'. Expected WxDxH in cm e.g. 500x400x250"
         )
-
-
-# ═══════════════════════════════════════════════════════
-#  SIMULATE mode
-# ═══════════════════════════════════════════════════════
 
 def run_simulate(room_w, room_d, room_h, grid_res, output_folder):
     from pipeline.simulator import simulate_room
@@ -108,10 +98,6 @@ def run_simulate(room_w, room_d, room_h, grid_res, output_folder):
     print(f"  3D Viewer → {html_path}")
     print("=" * 60)
 
-
-# ═══════════════════════════════════════════════════════
-#  CAPTURE mode (macOS / Wireshark / pyshark)
-# ═══════════════════════════════════════════════════════
 
 def run_capture(interface, duration, room_w, room_d, room_h, output_folder):
     from pipeline.capture_macos import (
@@ -164,10 +150,6 @@ def run_capture(interface, duration, room_w, room_d, room_h, output_folder):
     print("=" * 60)
 
 
-# ═══════════════════════════════════════════════════════
-#  LOAD mode
-# ═══════════════════════════════════════════════════════
-
 def run_load(pkl_file, output_folder):
     import pickle
     from pipeline.visualizer_3d import launch_3d_viewer
@@ -208,10 +190,6 @@ def run_load(pkl_file, output_folder):
 
     print(f"\n  3D Viewer → {html_path}")
 
-
-# ═══════════════════════════════════════════════════════
-#  VISUALIZE mode (Plotly charts from saved csi_data/)
-# ═══════════════════════════════════════════════════════
 
 def run_visualize(data_folder, room_w, room_d, room_h, output_folder):
     import glob, re
@@ -256,17 +234,14 @@ def run_visualize(data_folder, room_w, room_d, room_h, output_folder):
     print("=" * 60)
 
 
-# ═══════════════════════════════════════════════════════
-#  AI PIPELINE mode (original LangGraph ESP32 pipeline)
-# ═══════════════════════════════════════════════════════
 
 # ── LangGraph / AI Pipeline config ──────────────────────────────────
 CONFIG = {
     "serial_port":     None,   # None = auto-detect ESP32
-    "grid_rows":       8,
-    "grid_cols":       6,
-    "room_width_m":    3.0,
-    "room_height_m":   4.0,
+    "grid_rows":       5,
+    "grid_cols":       4,
+    "room_width_m":    0.9,
+    "room_height_m":   1.1,
     "packets_per_point": 200,
     "live_preview":    True,
     "auto_retry":      True,

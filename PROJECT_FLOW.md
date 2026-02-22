@@ -6,12 +6,12 @@
 
 ```mermaid
 graph TD
-    A["📱 Phone Hotspot<br/><i>SSID: ashes</i>"]
-    B["📟 ESP32<br/><i>app_main.c</i>"]
-    C["💻 MacBook Pro<br/><i>USB Serial</i>"]
-    D["🐍 Python Pipeline<br/><i>src/</i>"]
-    E["🤖 Ollama AI<br/><i>phi3.5:latest</i>"]
-    F["📊 Output Charts<br/><i>output/</i>"]
+    A[" Phone Hotspot<br/><i>SSID: ashes</i>"]
+    B[" ESP32<br/><i>app_main.c</i>"]
+    C[" MacBook Pro<br/><i>USB Serial</i>"]
+    D[" Python Pipeline<br/><i>src/</i>"]
+    E[" Ollama AI<br/><i>phi3.5:latest</i>"]
+    F[" Output Charts<br/><i>output/</i>"]
 
     A -- "WiFi (2.4GHz)" --> B
     B -- "CSI_DATA lines @ 115200 baud" --> C
@@ -27,10 +27,10 @@ graph TD
 
 ```mermaid
 flowchart LR
-    H1["📱 Phone<br/>Hotspot ON<br/><i>SSID: ashes<br/>Pass: 987654321</i>"]
-    H2["📟 ESP32<br/>app_main.c<br/><i>connects, sniffs CSI</i>"]
-    H3["🔌 USB Cable<br/>to MacBook"]
-    H4["🖥️ VS Code<br/>ESP_IDF: Monitor"]
+    H1[" Phone<br/>Hotspot ON<br/><i>SSID: ashes<br/>Pass: 987654321</i>"]
+    H2[" ESP32<br/>app_main.c<br/><i>connects, sniffs CSI</i>"]
+    H3[" USB Cable<br/>to MacBook"]
+    H4[" VS Code<br/>ESP_IDF: Monitor"]
 
     H1 -- "beacon frames<br/>every ~100ms" --> H2
     H2 -- "captures 64-subcarrier<br/>IQ CSI per packet" --> H3
@@ -90,19 +90,19 @@ csi_hotspot/
 
 ```mermaid
 flowchart TD
-    START(["▶ python main.py"])
-    SETUP["node_setup\n─────────\nAuto-detect serial port\nCreate csi_data/ folder\nPrint grid info"]
-    COLLECT["node_collect_point\n─────────────────\nOpen serial port\nFlush stale data\nCollect N packets\nShow pkt/s + ETA"]
-    AIVAL["node_ai_validate_point\n──────────────────────\nStatistical check:\n• ≥50 packets\n• RSSI in range\n• Variance OK\nLLM confirmation via Ollama"]
+    START(["python main.py"])
+    SETUP["node_setup Auto-detect serial port\nCreate csi_data/ folder\nPrint grid info"]
+    COLLECT["node_collect_point Open serial port\nFlush stale data\nCollect N packets\nShow pkt/s + ETA"]
+    AIVAL["node_ai_validate_point Statistical check:\n• ≥50 packets\n• RSSI in range\n• Variance OK\nLLM confirmation via Ollama"]
     FAIL{{"✗ FAIL\n(retry < 3)"}}
     PASS{{"✓ PASS"}}
-    ANOMALY["node_ai_anomaly_detection\n──────────────────────────\nCompute stats for point\nCompare to all prior points\nAsk LLM: normal or anomalous?\nPrint explanation"]
-    PREVIEW["node_live_preview\n─────────────────\nRe-generate partial\nheatmap PNG preview\n(shows progress so far)"]
-    ADVANCE["node_advance\n────────────\nrow++, col++\nSave CSV file\nr??_c??.csv"]
-    DONE{{"All points\ncollected?"}}
-    HEATMAP["node_process_heatmap\n─────────────────────\nBuild full 2D grid\nGaussian smooth\nEdge detection\nSave room_heatmap_final.png\nLaunch 3D viewer HTML"]
-    INTERP["node_ai_interpret_heatmap\n──────────────────────────\nCompute grid statistics\nSummarise anomalies\nAsk LLM: interpret the room\nSave ai_report.txt"]
-    END(["🏁 Done"])
+    ANOMALY["node_ai_anomaly_detection Compute stats for point, Compare to all prior points, Ask LLM: normal or anomalous?, Print explanation"]
+    PREVIEW["node_live_preview Re-generate partial heatmap PNG preview (shows progress so far)"]
+    ADVANCE["node_advancerow++, col++, Save CSV file, r??_c??.csv"]
+    DONE{{"All points collected?"}}
+    HEATMAP["node_process_heatmap Build full 2D grid, Gaussian smooth, Edge detection, Save room_heatmap_final.png, Launch 3D viewer HTML"]
+    INTERP["node_ai_interpret_heatmap Compute grid statistics, Summarise anomalies, Ask LLM: interpret the room, Save ai_report.txt"]
+    END([" Done"])
 
     START --> SETUP --> COLLECT --> AIVAL
     AIVAL -- FAIL --> FAIL --> COLLECT
@@ -134,7 +134,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    OLLAMA["🤖 Ollama Server\nlocalhost:11434\nphi3.5:latest"]
+    OLLAMA[" Ollama Server\nlocalhost:11434\nphi3.5:latest"]
 
     V["ai_validator.py\n──────────────\nIs the data quality\ngood enough to keep?\nRe-ask up to 3×"]
     AN["ai_anomaly.py\n───────────────\nIs this point unusual\ncompared to the rest?\nWhat might cause it?"]
@@ -157,11 +157,11 @@ flowchart TD
 flowchart LR
     MAIN["python main.py"]
 
-    M1["(no flag)\n────────\nAI Pipeline Mode\nFull LangGraph run\nESP32 required"]
-    M2["--mode simulate\n───────────────\nSynthetic CSI data\nNo hardware needed\nGood first test"]
-    M3["--mode capture\n──────────────\nmacOS WiFi sniff\nvia Wireshark/tshark\nsudo required"]
-    M4["--mode load\n───────────\nLoad saved .pkl\nfile and view\nin 3D viewer"]
-    M5["--mode visualize\n─────────────────\nBuild 3 Plotly charts\nfrom csi_data/ CSVs\nNo hardware needed"]
+    M1["(no flag) AI Pipeline Mode\nFull LangGraph run\nESP32 required"]
+    M2["--mode simulate Synthetic CSI data No hardware needed Good first test"]
+    M3["--mode capture macOS WiFi sniff via Wireshark/tshark sudo required"]
+    M4["--mode load Load saved .pkl file and view in 3D viewer"]
+    M5["--mode visualize Build 3 Plotly charts from csi_data/ CSVs No hardware needed"]
 
     MAIN --> M1
     MAIN --> M2
