@@ -136,15 +136,15 @@ flowchart LR
 flowchart TD
     OLLAMA[" Ollama Server\nlocalhost:11434\nphi3.5:latest"]
 
-    V["ai_validator.py\n──────────────\nIs the data quality\ngood enough to keep?\nRe-ask up to 3×"]
-    AN["ai_anomaly.py\n───────────────\nIs this point unusual\ncompared to the rest?\nWhat might cause it?"]
-    IN["ai_interpreter.py\n──────────────────\nInterpret the full room:\n• High RF zones\n• Low RF zones\n• Anomalies found\n• 2 improvement tips"]
+    V["ai_validator.py: Is the data quality, good enough to keep?, Re-ask up to 3×"]
+    AN["ai_anomaly.py: Is this point unusual, compared to the rest?, What might cause it?"]
+    IN["ai_interpreter.py: Interpret the full room:, • High RF zones, • Low RF zones, • Anomalies found, • 2 improvement tips"]
 
     OLLAMA --> V
     OLLAMA --> AN
     OLLAMA --> IN
 
-    V -- "✓ PASS / ✗ FAIL" --> PIPE["LangGraph\npipeline"]
+    V -- "✓ PASS / ✗ FAIL" --> PIPE["LangGraph pipeline"]
     AN -- "NORMAL / ANOMALOUS\n+ reason sentence" --> PIPE
     IN -- "Plain-English\nreport → ai_report.txt" --> PIPE
 ```
