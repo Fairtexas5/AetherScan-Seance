@@ -133,6 +133,7 @@ Follow the on-screen prompts — carry the ESP32 to each grid position, press En
 | `output/csi_2d_heatmap.html` | Plotly interactive 2D heatmap |
 | `output/csi_3d_surface.html` | Plotly 3D surface chart |
 | `output/csi_3d_room.html` | 3D room + measurement points |
+| `output/chair_3d_room.html` | 3D room demo from `chair_demo.py` (photo grid) |
 | `output/ai_report.txt` | AI plain-English interpretation |
 | `csi_data/r??_c??.csv` | Raw CSI packets per grid position |
 
