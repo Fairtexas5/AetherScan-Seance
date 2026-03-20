@@ -1,1338 +1,642 @@
-<html>
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WiFi CSI 3D Room Map — Chair in Centre (Dotted Grid)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a12;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+            color: #e0e0e0;
+        }
+        canvas { display: block; }
+
+        /* Title overlay */
+        #title-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            padding: 14px 24px;
+            background: linear-gradient(180deg, rgba(10,10,18,0.92) 0%, rgba(10,10,18,0) 100%);
+            z-index: 10;
+            pointer-events: none;
+        }
+        #title-bar h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #c8deff;
+            text-shadow: 0 0 20px rgba(80,140,255,0.4);
+        }
+        #title-bar p {
+            font-size: 12px;
+            color: rgba(180,200,230,0.6);
+            margin-top: 2px;
+        }
+
+        /* Legend */
+        #legend {
+            position: fixed;
+            bottom: 20px; left: 20px;
+            background: rgba(15,15,28,0.85);
+            border: 1px solid rgba(100,140,255,0.15);
+            border-radius: 10px;
+            padding: 14px 18px;
+            z-index: 10;
+            backdrop-filter: blur(12px);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        #legend h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: rgba(150,180,220,0.7);
+            margin-bottom: 6px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        /* Info panel */
+        #info-panel {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            background: rgba(15,15,28,0.85);
+            border: 1px solid rgba(100,140,255,0.15);
+            border-radius: 10px;
+            padding: 14px 18px;
+            z-index: 10;
+            backdrop-filter: blur(12px);
+            font-size: 11px;
+            color: rgba(180,200,230,0.6);
+            line-height: 1.6;
+        }
+
+        /* Tooltip */
+        #tooltip {
+            position: fixed;
+            display: none;
+            background: rgba(10,14,30,0.92);
+            border: 1px solid rgba(80,140,255,0.35);
+            border-radius: 8px;
+            padding: 10px 14px;
+            z-index: 20;
+            pointer-events: none;
+            backdrop-filter: blur(16px);
+            font-size: 13px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        }
+        #tooltip .grid-label {
+            font-weight: 700;
+            color: #7aafff;
+            font-size: 14px;
+        }
+        #tooltip .coord {
+            color: rgba(180,200,230,0.6);
+            font-size: 11px;
+        }
+        #tooltip .rf-val {
+            margin-top: 4px;
+            font-size: 13px;
+        }
+    </style>
 </head>
-
 <body>
-    <div>
-        <script type="text/javascript">
-            window.PlotlyConfig = {
-                MathJaxConfig: 'local'
-            };
-        </script>
-        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.3.1.min.js"
-            integrity="sha256-4rD3fugVb/nVJYUv5Ky3v+fYXoouHaBSP20WIJuEiWg=" crossorigin="anonymous"></script>
-        <div id="9fe970ae-16f5-4277-8fc6-2356a8bdf6cc" class="plotly-graph-div" style="height:100%; width:100%;"></div>
-        <script type="text/javascript">
-            window.PLOTLYENV = window.PLOTLYENV || {};
-            if (document.getElementById("9fe970ae-16f5-4277-8fc6-2356a8bdf6cc")) {
-                Plotly.newPlot("9fe970ae-16f5-4277-8fc6-2356a8bdf6cc", [{
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "#4488ff",
-                        "width": 2
-                    },
-                    "mode": "lines",
-                    "name": "Room boundary",
-                    "x": [0, 90, 90, 0, 0, 0, 90, 90, 0, 0, null, 90, 90, null, 90, 90, null, 0, 0],
-                    "y": [0, 0, 150, 150, 0, 0, 0, 150, 150, 0, null, 0, 0, null, 150, 150, null, 150, 150],
-                    "z": [0, 0, 0, 0, 0, 240, 240, 240, 240, 240, null, 0, 240, null, 0, 240, null, 0, 240],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 0],
-                    "y": [0, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30, 30],
-                    "y": [0, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60, 60],
-                    "y": [0, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90, 90],
-                    "y": [0, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [120, 120],
-                    "y": [0, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [0, 0],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [30, 30],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [60, 60],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [90, 90],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [120, 120],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [150, 150],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(80,80,200,0.25)",
-                        "width": 1
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0, 120],
-                    "y": [180, 180],
-                    "z": [0, 0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [0.0, 0.0],
-                    "z": [5, 22.1],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [0.0, 0.0],
-                    "z": [5, 24.0],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [0.0, 0.0],
-                    "z": [5, 23.24],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [0.0, 0.0],
-                    "z": [5, 19.439999999999998],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [30.0, 30.0],
-                    "z": [5, 27.04],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [30.0, 30.0],
-                    "z": [5, 38.44],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [30.0, 30.0],
-                    "z": [5, 36.16],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [30.0, 30.0],
-                    "z": [5, 21.72],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [60.0, 60.0],
-                    "z": [5, 28.56],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [60.0, 60.0],
-                    "z": [5, 41.1],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [60.0, 60.0],
-                    "z": [5, 39.58],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [60.0, 60.0],
-                    "z": [5, 22.86],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [90.0, 90.0],
-                    "z": [5, 25.900000000000002],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [90.0, 90.0],
-                    "z": [5, 34.64],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [90.0, 90.0],
-                    "z": [5, 32.36],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [90.0, 90.0],
-                    "z": [5, 20.96],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [120.0, 120.0],
-                    "z": [5, 16.4],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [120.0, 120.0],
-                    "z": [5, 14.12],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [120.0, 120.0],
-                    "z": [5, 15.64],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [120.0, 120.0],
-                    "z": [5, 18.68],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [0.0, 0.0],
-                    "y": [150.0, 150.0],
-                    "z": [5, 14.5],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [30.0, 30.0],
-                    "y": [150.0, 150.0],
-                    "z": [5, 12.600000000000001],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [60.0, 60.0],
-                    "y": [150.0, 150.0],
-                    "z": [5, 13.36],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "line": {
-                        "color": "rgba(120,210,255,0.28)",
-                        "width": 4
-                    },
-                    "mode": "lines",
-                    "showlegend": false,
-                    "x": [90.0, 90.0],
-                    "y": [150.0, 150.0],
-                    "z": [5, 17.16],
-                    "type": "scatter3d"
-                }, {
-                    "hovertemplate": "%{text}\u003cextra\u003e\u003c\u002fextra\u003e",
-                    "marker": {
-                        "cmax": 1,
-                        "cmin": 0,
-                        "color": [0.3333333333333333, 0.39999999999999997, 0.3733333333333333, 0.24,
-                            0.5066666666666666, 0.9066666666666666, 0.8266666666666665, 0.32,
-                            0.5599999999999999, 1.0, 0.9466666666666667, 0.35999999999999993,
-                            0.46666666666666673, 0.7733333333333334, 0.6933333333333334,
-                            0.2933333333333333, 0.1333333333333333, 0.05333333333333331,
-                            0.10666666666666669, 0.2133333333333333, 0.06666666666666665, 0.0,
-                            0.026666666666666655, 0.16
-                        ],
-                        "colorbar": {
-                            "len": 0.55,
-                            "thickness": 15,
-                            "ticktext": ["Low", "Mid", "High"],
-                            "tickvals": [0, 0.5, 1.0],
-                            "title": {
-                                "side": "right",
-                                "text": "RF Intensity"
-                            },
-                            "x": 1.02
-                        },
-                        "colorscale": [
-                            [0.0, "#06003c"],
-                            [0.25, "#1a0099"],
-                            [0.45, "#0044ff"],
-                            [0.62, "#00cccc"],
-                            [0.8, "#ffee00"],
-                            [1.0, "#ff2200"]
-                        ],
-                        "opacity": 0.95,
-                        "size": 11
-                    },
-                    "mode": "markers",
-                    "name": "Measurement points (floor)",
-                    "text": [
-                        "\u003cb\u003eGrid [0,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 0cm)\u003cbr\u003eRF: 0.450  🟡",
-                        "\u003cb\u003eGrid [0,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 0cm)\u003cbr\u003eRF: 0.500  🟡",
-                        "\u003cb\u003eGrid [0,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 0cm)\u003cbr\u003eRF: 0.480  🟡",
-                        "\u003cb\u003eGrid [0,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 0cm)\u003cbr\u003eRF: 0.380  🟡",
-                        "\u003cb\u003eGrid [1,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 30cm)\u003cbr\u003eRF: 0.580  🟡",
-                        "\u003cb\u003eGrid [1,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 30cm)\u003cbr\u003eRF: 0.880  🔴",
-                        "\u003cb\u003eGrid [1,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 30cm)\u003cbr\u003eRF: 0.820  🔴",
-                        "\u003cb\u003eGrid [1,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 30cm)\u003cbr\u003eRF: 0.440  🟡",
-                        "\u003cb\u003eGrid [2,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 60cm)\u003cbr\u003eRF: 0.620  🟡",
-                        "\u003cb\u003eGrid [2,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 60cm)\u003cbr\u003eRF: 0.950  🔴",
-                        "\u003cb\u003eGrid [2,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 60cm)\u003cbr\u003eRF: 0.910  🔴",
-                        "\u003cb\u003eGrid [2,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 60cm)\u003cbr\u003eRF: 0.470  🟡",
-                        "\u003cb\u003eGrid [3,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 90cm)\u003cbr\u003eRF: 0.550  🟡",
-                        "\u003cb\u003eGrid [3,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 90cm)\u003cbr\u003eRF: 0.780  🔴",
-                        "\u003cb\u003eGrid [3,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 90cm)\u003cbr\u003eRF: 0.720  🔴",
-                        "\u003cb\u003eGrid [3,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 90cm)\u003cbr\u003eRF: 0.420  🟡",
-                        "\u003cb\u003eGrid [4,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 120cm)\u003cbr\u003eRF: 0.300  🔵",
-                        "\u003cb\u003eGrid [4,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 120cm)\u003cbr\u003eRF: 0.240  🔵",
-                        "\u003cb\u003eGrid [4,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 120cm)\u003cbr\u003eRF: 0.280  🔵",
-                        "\u003cb\u003eGrid [4,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 120cm)\u003cbr\u003eRF: 0.360  🟡",
-                        "\u003cb\u003eGrid [5,0]\u003c\u002fb\u003e\u003cbr\u003e(0cm, 150cm)\u003cbr\u003eRF: 0.250  🔵",
-                        "\u003cb\u003eGrid [5,1]\u003c\u002fb\u003e\u003cbr\u003e(30cm, 150cm)\u003cbr\u003eRF: 0.200  🔵",
-                        "\u003cb\u003eGrid [5,2]\u003c\u002fb\u003e\u003cbr\u003e(60cm, 150cm)\u003cbr\u003eRF: 0.220  🔵",
-                        "\u003cb\u003eGrid [5,3]\u003c\u002fb\u003e\u003cbr\u003e(90cm, 150cm)\u003cbr\u003eRF: 0.320  🟡"
-                    ],
-                    "x": [0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0,
-                        60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0
-                    ],
-                    "y": [0.0, 0.0, 0.0, 0.0, 30.0, 30.0, 30.0, 30.0, 60.0, 60.0, 60.0, 60.0, 90.0, 90.0,
-                        90.0, 90.0, 120.0, 120.0, 120.0, 120.0, 150.0, 150.0, 150.0, 150.0
-                    ],
-                    "z": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
-                        5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0
-                    ],
-                    "type": "scatter3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "mode": "text",
-                    "showlegend": false,
-                    "text": ["[0,0]", "[0,1]", "[0,2]", "[0,3]", "[1,0]", "[1,1]", "[1,2]", "[1,3]",
-                        "[2,0]", "[2,1]", "[2,2]", "[2,3]", "[3,0]", "[3,1]", "[3,2]", "[3,3]", "[4,0]",
-                        "[4,1]", "[4,2]", "[4,3]", "[5,0]", "[5,1]", "[5,2]", "[5,3]"
-                    ],
-                    "textfont": {
-                        "color": "rgba(200,200,200,0.65)",
-                        "size": 8
-                    },
-                    "x": [0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0,
-                        60.0, 90.0, 0.0, 30.0, 60.0, 90.0, 0.0, 30.0, 60.0, 90.0
-                    ],
-                    "y": [0.0, 0.0, 0.0, 0.0, 30.0, 30.0, 30.0, 30.0, 60.0, 60.0, 60.0, 60.0, 90.0, 90.0,
-                        90.0, 90.0, 120.0, 120.0, 120.0, 120.0, 150.0, 150.0, 150.0, 150.0
-                    ],
-                    "z": [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-                        19, 19, 19, 19
-                    ],
-                    "type": "scatter3d"
-                }, {
-                    "color": "#ff2200",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "Chair seat",
-                    "opacity": 0.9,
-                    "showlegend": true,
-                    "x": [5, 70, 70, 5, 5, 70, 70, 5],
-                    "y": [30, 30, 90, 90, 30, 30, 90, 90],
-                    "z": [42, 42, 42, 42, 50, 50, 50, 50],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#ff9c00",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "Chair backrest",
-                    "opacity": 0.85,
-                    "showlegend": true,
-                    "x": [11, 64, 64, 11, 11, 64, 64, 11],
-                    "y": [30, 30, 37, 37, 30, 30, 37, 37],
-                    "z": [50, 50, 50, 50, 122, 122, 122, 122],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#eceb0f",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "Chair arm L",
-                    "opacity": 0.78,
-                    "showlegend": true,
-                    "x": [5, 12, 12, 5, 5, 12, 12, 5],
-                    "y": [35, 35, 85, 85, 35, 35, 85, 85],
-                    "z": [50, 50, 50, 50, 98, 98, 98, 98],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#eceb0f",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "Chair arm R",
-                    "opacity": 0.78,
-                    "showlegend": false,
-                    "x": [63, 70, 70, 63, 63, 70, 70, 63],
-                    "y": [35, 35, 85, 85, 35, 35, 85, 85],
-                    "z": [50, 50, 50, 50, 98, 98, 98, 98],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#42d497",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "Chair column",
-                    "opacity": 0.85,
-                    "showlegend": true,
-                    "x": [32.5, 42.5, 42.5, 32.5, 32.5, 42.5, 42.5, 32.5],
-                    "y": [55.0, 55.0, 65.0, 65.0, 55.0, 55.0, 65.0, 65.0],
-                    "z": [0, 0, 0, 0, 42, 42, 42, 42],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#0086e6",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "_leg",
-                    "opacity": 0.75,
-                    "showlegend": false,
-                    "x": [34.5, 64.5, 64.5, 34.5, 34.5, 64.5, 64.5, 34.5],
-                    "y": [57.0, 57.0, 63.0, 63.0, 57.0, 57.0, 63.0, 63.0],
-                    "z": [0, 0, 0, 0, 5, 5, 5, 5],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#0086e6",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "_leg",
-                    "opacity": 0.75,
-                    "showlegend": false,
-                    "x": [34.5, 47.91640786499874, 47.91640786499874, 34.5, 34.5, 47.91640786499874,
-                        47.91640786499874, 34.5
-                    ],
-                    "y": [57.0, 57.0, 85.82535639108369, 85.82535639108369, 57.0, 57.0, 85.82535639108369,
-                        85.82535639108369
-                    ],
-                    "z": [0, 0, 0, 0, 5, 5, 5, 5],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#0086e6",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "_leg",
-                    "opacity": 0.75,
-                    "showlegend": false,
-                    "x": [15.083592135001265, 40.5, 40.5, 15.083592135001265, 15.083592135001265, 40.5,
-                        40.5, 15.083592135001265
-                    ],
-                    "y": [57.0, 57.0, 77.10684605501936, 77.10684605501936, 57.0, 57.0, 77.10684605501936,
-                        77.10684605501936
-                    ],
-                    "z": [0, 0, 0, 0, 5, 5, 5, 5],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#0086e6",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "_leg",
-                    "opacity": 0.75,
-                    "showlegend": false,
-                    "x": [15.083592135001261, 40.5, 40.5, 15.083592135001261, 15.083592135001261, 40.5,
-                        40.5, 15.083592135001261
-                    ],
-                    "y": [42.89315394498065, 42.89315394498065, 63.0, 63.0, 42.89315394498065,
-                        42.89315394498065, 63.0, 63.0
-                    ],
-                    "z": [0, 0, 0, 0, 5, 5, 5, 5],
-                    "type": "mesh3d"
-                }, {
-                    "color": "#0086e6",
-                    "flatshading": true,
-                    "hoverinfo": "skip",
-                    "i": [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6],
-                    "j": [1, 3, 2, 5, 3, 6, 5, 7, 6, 1, 7, 2],
-                    "k": [2, 2, 5, 6, 6, 7, 7, 6, 1, 2, 2, 3],
-                    "lighting": {
-                        "ambient": 0.65,
-                        "diffuse": 0.85,
-                        "specular": 0.3
-                    },
-                    "name": "_leg",
-                    "opacity": 0.75,
-                    "showlegend": false,
-                    "x": [34.5, 47.91640786499873, 47.91640786499873, 34.5, 34.5, 47.91640786499873,
-                        47.91640786499873, 34.5
-                    ],
-                    "y": [34.17464360891631, 34.17464360891631, 63.0, 63.0, 34.17464360891631,
-                        34.17464360891631, 63.0, 63.0
-                    ],
-                    "z": [0, 0, 0, 0, 5, 5, 5, 5],
-                    "type": "mesh3d"
-                }, {
-                    "hoverinfo": "skip",
-                    "marker": {
-                        "color": "#00ff88",
-                        "size": 10,
-                        "symbol": "diamond"
-                    },
-                    "mode": "markers+text",
-                    "name": "Transmitter (hotspot)",
-                    "text": ["📡 TX"],
-                    "textfont": {
-                        "color": "#00ff88",
-                        "size": 12
-                    },
-                    "textposition": "top center",
-                    "x": [45],
-                    "y": [-10],
-                    "z": [120],
-                    "type": "scatter3d"
-                }], {
-                    "template": {
-                        "data": {
-                            "histogram2dcontour": [{
-                                "type": "histogram2dcontour",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                },
-                                "colorscale": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ]
-                            }],
-                            "choropleth": [{
-                                "type": "choropleth",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                }
-                            }],
-                            "histogram2d": [{
-                                "type": "histogram2d",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                },
-                                "colorscale": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ]
-                            }],
-                            "heatmap": [{
-                                "type": "heatmap",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                },
-                                "colorscale": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ]
-                            }],
-                            "contourcarpet": [{
-                                "type": "contourcarpet",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                }
-                            }],
-                            "contour": [{
-                                "type": "contour",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                },
-                                "colorscale": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ]
-                            }],
-                            "surface": [{
-                                "type": "surface",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                },
-                                "colorscale": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ]
-                            }],
-                            "mesh3d": [{
-                                "type": "mesh3d",
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                }
-                            }],
-                            "scatter": [{
-                                "fillpattern": {
-                                    "fillmode": "overlay",
-                                    "size": 10,
-                                    "solidity": 0.2
-                                },
-                                "type": "scatter"
-                            }],
-                            "parcoords": [{
-                                "type": "parcoords",
-                                "line": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scatterpolargl": [{
-                                "type": "scatterpolargl",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "bar": [{
-                                "error_x": {
-                                    "color": "#2a3f5f"
-                                },
-                                "error_y": {
-                                    "color": "#2a3f5f"
-                                },
-                                "marker": {
-                                    "line": {
-                                        "color": "#E5ECF6",
-                                        "width": 0.5
-                                    },
-                                    "pattern": {
-                                        "fillmode": "overlay",
-                                        "size": 10,
-                                        "solidity": 0.2
-                                    }
-                                },
-                                "type": "bar"
-                            }],
-                            "scattergeo": [{
-                                "type": "scattergeo",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scatterpolar": [{
-                                "type": "scatterpolar",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "histogram": [{
-                                "marker": {
-                                    "pattern": {
-                                        "fillmode": "overlay",
-                                        "size": 10,
-                                        "solidity": 0.2
-                                    }
-                                },
-                                "type": "histogram"
-                            }],
-                            "scattergl": [{
-                                "type": "scattergl",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scatter3d": [{
-                                "type": "scatter3d",
-                                "line": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                },
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scattermap": [{
-                                "type": "scattermap",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scattermapbox": [{
-                                "type": "scattermapbox",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scatterternary": [{
-                                "type": "scatterternary",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "scattercarpet": [{
-                                "type": "scattercarpet",
-                                "marker": {
-                                    "colorbar": {
-                                        "outlinewidth": 0,
-                                        "ticks": ""
-                                    }
-                                }
-                            }],
-                            "carpet": [{
-                                "aaxis": {
-                                    "endlinecolor": "#2a3f5f",
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "minorgridcolor": "white",
-                                    "startlinecolor": "#2a3f5f"
-                                },
-                                "baxis": {
-                                    "endlinecolor": "#2a3f5f",
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "minorgridcolor": "white",
-                                    "startlinecolor": "#2a3f5f"
-                                },
-                                "type": "carpet"
-                            }],
-                            "table": [{
-                                "cells": {
-                                    "fill": {
-                                        "color": "#EBF0F8"
-                                    },
-                                    "line": {
-                                        "color": "white"
-                                    }
-                                },
-                                "header": {
-                                    "fill": {
-                                        "color": "#C8D4E3"
-                                    },
-                                    "line": {
-                                        "color": "white"
-                                    }
-                                },
-                                "type": "table"
-                            }],
-                            "barpolar": [{
-                                "marker": {
-                                    "line": {
-                                        "color": "#E5ECF6",
-                                        "width": 0.5
-                                    },
-                                    "pattern": {
-                                        "fillmode": "overlay",
-                                        "size": 10,
-                                        "solidity": 0.2
-                                    }
-                                },
-                                "type": "barpolar"
-                            }],
-                            "pie": [{
-                                "automargin": true,
-                                "type": "pie"
-                            }]
-                        },
-                        "layout": {
-                            "autotypenumbers": "strict",
-                            "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3",
-                                "#FF6692", "#B6E880", "#FF97FF", "#FECB52"
-                            ],
-                            "font": {
-                                "color": "#2a3f5f"
-                            },
-                            "hovermode": "closest",
-                            "hoverlabel": {
-                                "align": "left"
-                            },
-                            "paper_bgcolor": "white",
-                            "plot_bgcolor": "#E5ECF6",
-                            "polar": {
-                                "bgcolor": "#E5ECF6",
-                                "angularaxis": {
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "ticks": ""
-                                },
-                                "radialaxis": {
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "ticks": ""
-                                }
-                            },
-                            "ternary": {
-                                "bgcolor": "#E5ECF6",
-                                "aaxis": {
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "ticks": ""
-                                },
-                                "baxis": {
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "ticks": ""
-                                },
-                                "caxis": {
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "ticks": ""
-                                }
-                            },
-                            "coloraxis": {
-                                "colorbar": {
-                                    "outlinewidth": 0,
-                                    "ticks": ""
-                                }
-                            },
-                            "colorscale": {
-                                "sequential": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ],
-                                "sequentialminus": [
-                                    [0.0, "#0d0887"],
-                                    [0.1111111111111111, "#46039f"],
-                                    [0.2222222222222222, "#7201a8"],
-                                    [0.3333333333333333, "#9c179e"],
-                                    [0.4444444444444444, "#bd3786"],
-                                    [0.5555555555555556, "#d8576b"],
-                                    [0.6666666666666666, "#ed7953"],
-                                    [0.7777777777777778, "#fb9f3a"],
-                                    [0.8888888888888888, "#fdca26"],
-                                    [1.0, "#f0f921"]
-                                ],
-                                "diverging": [
-                                    [0, "#8e0152"],
-                                    [0.1, "#c51b7d"],
-                                    [0.2, "#de77ae"],
-                                    [0.3, "#f1b6da"],
-                                    [0.4, "#fde0ef"],
-                                    [0.5, "#f7f7f7"],
-                                    [0.6, "#e6f5d0"],
-                                    [0.7, "#b8e186"],
-                                    [0.8, "#7fbc41"],
-                                    [0.9, "#4d9221"],
-                                    [1, "#276419"]
-                                ]
-                            },
-                            "xaxis": {
-                                "gridcolor": "white",
-                                "linecolor": "white",
-                                "ticks": "",
-                                "title": {
-                                    "standoff": 15
-                                },
-                                "zerolinecolor": "white",
-                                "automargin": true,
-                                "zerolinewidth": 2
-                            },
-                            "yaxis": {
-                                "gridcolor": "white",
-                                "linecolor": "white",
-                                "ticks": "",
-                                "title": {
-                                    "standoff": 15
-                                },
-                                "zerolinecolor": "white",
-                                "automargin": true,
-                                "zerolinewidth": 2
-                            },
-                            "scene": {
-                                "xaxis": {
-                                    "backgroundcolor": "#E5ECF6",
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "showbackground": true,
-                                    "ticks": "",
-                                    "zerolinecolor": "white",
-                                    "gridwidth": 2
-                                },
-                                "yaxis": {
-                                    "backgroundcolor": "#E5ECF6",
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "showbackground": true,
-                                    "ticks": "",
-                                    "zerolinecolor": "white",
-                                    "gridwidth": 2
-                                },
-                                "zaxis": {
-                                    "backgroundcolor": "#E5ECF6",
-                                    "gridcolor": "white",
-                                    "linecolor": "white",
-                                    "showbackground": true,
-                                    "ticks": "",
-                                    "zerolinecolor": "white",
-                                    "gridwidth": 2
-                                }
-                            },
-                            "shapedefaults": {
-                                "line": {
-                                    "color": "#2a3f5f"
-                                }
-                            },
-                            "annotationdefaults": {
-                                "arrowcolor": "#2a3f5f",
-                                "arrowhead": 0,
-                                "arrowwidth": 1
-                            },
-                            "geo": {
-                                "bgcolor": "white",
-                                "landcolor": "#E5ECF6",
-                                "subunitcolor": "white",
-                                "showland": true,
-                                "showlakes": true,
-                                "lakecolor": "white"
-                            },
-                            "title": {
-                                "x": 0.05
-                            },
-                            "mapbox": {
-                                "style": "light"
-                            }
-                        }
-                    },
-                    "title": {
-                        "font": {
-                            "size": 18,
-                            "color": "white"
-                        },
-                        "text": "CSI 3D Room Structure — Chair Position Mapped",
-                        "x": 0.5
-                    },
-                    "scene": {
-                        "xaxis": {
-                            "title": {
-                                "text": "Width (0–90cm)"
-                            },
-                            "range": [-5, 98],
-                            "backgroundcolor": "#0d0d1a",
-                            "gridcolor": "#222",
-                            "showbackground": true
-                        },
-                        "yaxis": {
-                            "title": {
-                                "text": "Depth (0–150cm)"
-                            },
-                            "range": [-18, 160],
-                            "backgroundcolor": "#0d0d1a",
-                            "gridcolor": "#222",
-                            "showbackground": true
-                        },
-                        "zaxis": {
-                            "title": {
-                                "text": "Height (0–200cm)"
-                            },
-                            "range": [0, 250],
-                            "backgroundcolor": "#0d0d1a",
-                            "gridcolor": "#222",
-                            "showbackground": true
-                        },
-                        "aspectratio": {
-                            "x": 0.9,
-                            "y": 1.5,
-                            "z": 2.2
-                        },
-                        "camera": {
-                            "eye": {
-                                "x": 1.8,
-                                "y": -1.9,
-                                "z": 0.85
-                            }
-                        },
-                        "aspectmode": "manual",
-                        "bgcolor": "#0d0d1a"
-                    },
-                    "legend": {
-                        "font": {
-                            "color": "white",
-                            "size": 11
-                        },
-                        "bgcolor": "rgba(0,0,0,0.55)",
-                        "x": 0.01,
-                        "y": 0.99
-                    },
-                    "font": {
-                        "color": "white",
-                        "family": "Inter, Arial, sans-serif"
-                    },
-                    "margin": {
-                        "l": 0,
-                        "r": 0,
-                        "t": 60,
-                        "b": 0
-                    },
-                    "paper_bgcolor": "#12122a"
-                }, {
-                    "responsive": true
-                })
-            };
-        </script>
-    </div>
-</body>
 
+<div id="title-bar">
+    <h1>WiFi CSI 3D Room Map — Chair in Centre</h1>
+    <p>Dotted grid measurement layout · 6 × 4 grid · 30 cm spacing</p>
+</div>
+
+<div id="legend">
+    <h3>Legend</h3>
+    <div class="legend-item"><span class="legend-dot" style="background:#ff2200;box-shadow:0 0 6px #ff2200"></span> High RF (≥ 0.7)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ffcc00;box-shadow:0 0 6px #ffcc00"></span> Mid RF (0.35–0.7)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#2266ff;box-shadow:0 0 6px #2266ff"></span> Low RF (< 0.35)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#1a1a1a;border:1.5px solid #555"></span> Chair</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></span> Transmitter</div>
+</div>
+
+<div id="info-panel">
+    🖱 Drag to orbit · Scroll to zoom · Right-drag to pan<br>
+    Hover dots for RF readings
+</div>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+// ─── RF DATA ──────────────────────────────────────────────
+const rfData = [
+    // row, col, rfValue
+    [0,0,0.450],[0,1,0.500],[0,2,0.480],[0,3,0.380],
+    [1,0,0.580],[1,1,0.880],[1,2,0.820],[1,3,0.440],
+    [2,0,0.620],[2,1,0.950],[2,2,0.910],[2,3,0.470],
+    [3,0,0.550],[3,1,0.780],[3,2,0.720],[3,3,0.420],
+    [4,0,0.300],[4,1,0.240],[4,2,0.280],[4,3,0.360],
+    [5,0,0.250],[5,1,0.200],[5,2,0.220],[5,3,0.320],
+];
+
+const GRID_SPACING = 0.30;  // 30 cm in metres (scene unit = metre)
+const ROWS = 6, COLS = 4;
+
+function rfColor(v) {
+    if (v >= 0.7) return new THREE.Color(1.0, 0.13, 0.0);       // red
+    if (v >= 0.35) return new THREE.Color(1.0, 0.8, 0.0);       // yellow
+    return new THREE.Color(0.13, 0.4, 1.0);                     // blue
+}
+
+// ─── SCENE SETUP ──────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a12);
+scene.fog = new THREE.FogExp2(0x0a0a12, 0.25);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 50);
+camera.position.set(1.8, 2.0, 2.4);
+camera.lookAt(0.45, 0.3, 0.75);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.target.set(0.45, 0.3, 0.75);
+controls.minDistance = 0.5;
+controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI / 2 + 0.1;
+controls.update();
+
+// ─── LIGHTING ─────────────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(ambientLight);
+
+const hemiLight = new THREE.HemisphereLight(0x8899cc, 0x334455, 0.5);
+scene.add(hemiLight);
+
+const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+dirLight.position.set(2, 4, 1);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.near = 0.1;
+dirLight.shadow.camera.far = 10;
+dirLight.shadow.camera.left = -3;
+dirLight.shadow.camera.right = 3;
+dirLight.shadow.camera.top = 3;
+dirLight.shadow.camera.bottom = -3;
+dirLight.shadow.bias = -0.0005;
+scene.add(dirLight);
+
+const pointLight = new THREE.PointLight(0x6688ff, 0.4, 5);
+pointLight.position.set(0.45, 2.0, 0.75);
+scene.add(pointLight);
+
+// ─── ROOM ─────────────────────────────────────────────────
+const roomW = 1.8;   // ~180 cm width  (X)
+const roomD = 2.4;   // ~240 cm depth  (Z)
+const roomH = 2.4;   // ~240 cm height (Y)
+
+// Floor
+const floorGeo = new THREE.PlaneGeometry(roomW, roomD);
+const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x3a3a40,
+    roughness: 0.85,
+    metalness: 0.1,
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(roomW / 2, 0, roomD / 2);
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Walls
+const wallMat = new THREE.MeshStandardMaterial({
+    color: 0xd4c9a8,
+    roughness: 0.9,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+});
+
+// Back wall (Z=0)
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+backWall.position.set(roomW / 2, roomH / 2, 0);
+backWall.receiveShadow = true;
+scene.add(backWall);
+
+// Left wall (X=0)
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat.clone());
+leftWall.material.color.set(0xccc3a0);
+leftWall.rotation.y = Math.PI / 2;
+leftWall.position.set(0, roomH / 2, roomD / 2);
+leftWall.receiveShadow = true;
+scene.add(leftWall);
+
+// Baseboard (skirting)
+const skirtMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+const skirtBack = new THREE.Mesh(new THREE.BoxGeometry(roomW, 0.08, 0.015), skirtMat);
+skirtBack.position.set(roomW / 2, 0.04, 0.007);
+scene.add(skirtBack);
+
+const skirtLeft = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.08, roomD), skirtMat);
+skirtLeft.position.set(0.007, 0.04, roomD / 2);
+scene.add(skirtLeft);
+
+// ─── DOTTED GRID ──────────────────────────────────────────
+// Grid origin offset to centre the 4×6 grid nicely in the room
+const gridOriginX = 0.30;   // column 0 starts at X=0.30
+const gridOriginZ = 0.30;   // row 0 starts at Z=0.30
+
+const dotGroup = new THREE.Group();
+const interactiveDots = [];
+
+rfData.forEach(([row, col, rf]) => {
+    const x = gridOriginX + col * GRID_SPACING;
+    const z = gridOriginZ + row * GRID_SPACING;
+    const color = rfColor(rf);
+
+    // Dot sphere
+    const dotGeo = new THREE.SphereGeometry(0.022, 16, 16);
+    const dotMat = new THREE.MeshStandardMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: 0.6,
+        roughness: 0.3,
+        metalness: 0.2,
+    });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.set(x, 0.005, z);
+    dot.castShadow = false;
+    dot.receiveShadow = false;
+    dotGroup.add(dot);
+
+    // Glow ring on floor
+    const ringGeo = new THREE.RingGeometry(0.025, 0.038, 24);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, 0.002, z);
+    dotGroup.add(ring);
+
+    // Store for raycasting
+    dot.userData = { row, col, rf, x, z };
+    interactiveDots.push(dot);
+});
+
+scene.add(dotGroup);
+
+// Grid coordinate labels using canvas textures
+function makeLabel(text, x, z) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(200,210,230,0.7)';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 64, 34);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.7 });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.set(x, 0.06, z);
+    sprite.scale.set(0.12, 0.045, 1);
+    return sprite;
+}
+
+rfData.forEach(([row, col]) => {
+    const x = gridOriginX + col * GRID_SPACING;
+    const z = gridOriginZ + row * GRID_SPACING;
+    scene.add(makeLabel(`${row},${col}`, x, z));
+});
+
+// ─── CHAIR (detailed office swivel chair) ─────────────────
+// Chair centred on grid roughly around rows 1-3, cols 1-2
+const chairGroup = new THREE.Group();
+const chairCX = gridOriginX + 1.5 * GRID_SPACING;  // between col 1 and 2
+const chairCZ = gridOriginZ + 2.5 * GRID_SPACING;  // between row 2 and 3
+
+const chairMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1a,
+    roughness: 0.55,
+    metalness: 0.35,
+});
+const chairMatDark = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.4,
+    metalness: 0.5,
+});
+const meshMat = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    roughness: 0.7,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.85,
+});
+
+// === 5-star base ===
+const baseR = 0.26;
+const baseH = 0.02;
+const baseLegW = 0.032;
+const baseLegH = 0.018;
+
+// Central hub
+const hubGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16);
+const hub = new THREE.Mesh(hubGeo, chairMatDark);
+hub.position.y = 0.015;
+hub.castShadow = true;
+chairGroup.add(hub);
+
+// 5 legs radiating outward
+for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    const legGeo = new THREE.BoxGeometry(baseR, baseLegH, baseLegW);
+    const leg = new THREE.Mesh(legGeo, chairMatDark);
+    leg.position.set(
+        Math.cos(angle) * baseR / 2,
+        baseLegH / 2,
+        Math.sin(angle) * baseR / 2
+    );
+    leg.rotation.y = -angle;
+    leg.castShadow = true;
+    chairGroup.add(leg);
+
+    // Caster wheel at end of each leg
+    const casterGeo = new THREE.SphereGeometry(0.016, 10, 10);
+    const caster = new THREE.Mesh(casterGeo, chairMatDark);
+    caster.position.set(
+        Math.cos(angle) * baseR,
+        0.016,
+        Math.sin(angle) * baseR
+    );
+    caster.castShadow = true;
+    chairGroup.add(caster);
+}
+
+// === Hydraulic column ===
+const colGeo = new THREE.CylinderGeometry(0.022, 0.028, 0.30, 12);
+const column = new THREE.Mesh(colGeo, chairMatDark);
+column.position.y = 0.03 + 0.15;
+column.castShadow = true;
+chairGroup.add(column);
+
+// Column cover / skirt
+const skirtGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.06, 12);
+const colSkirt = new THREE.Mesh(skirtGeo, chairMat);
+colSkirt.position.y = 0.03 + 0.02;
+chairGroup.add(colSkirt);
+
+// === Seat mechanism plate ===
+const mechGeo = new THREE.BoxGeometry(0.18, 0.025, 0.18);
+const mech = new THREE.Mesh(mechGeo, chairMatDark);
+mech.position.y = 0.33;
+mech.castShadow = true;
+chairGroup.add(mech);
+
+// === Seat ===
+const seatW = 0.42;
+const seatD = 0.40;
+const seatH = 0.045;
+const seatY = 0.35;
+
+// Seat pan (slightly curved using a wider shape)
+const seatGeo = new THREE.BoxGeometry(seatW, seatH, seatD);
+// Round the edges slightly
+const seat = new THREE.Mesh(seatGeo, chairMat);
+seat.position.y = seatY;
+seat.castShadow = true;
+chairGroup.add(seat);
+
+// Seat front edge (rounded)
+const edgeGeo = new THREE.CylinderGeometry(seatH / 2, seatH / 2, seatW, 12);
+const seatEdge = new THREE.Mesh(edgeGeo, chairMat);
+seatEdge.rotation.z = Math.PI / 2;
+seatEdge.position.set(0, seatY, seatD / 2);
+seatEdge.castShadow = true;
+chairGroup.add(seatEdge);
+
+// Seat mesh/cushion texture (dark pad on top)
+const padGeo = new THREE.BoxGeometry(seatW - 0.03, 0.008, seatD - 0.03);
+const pad = new THREE.Mesh(padGeo, meshMat);
+pad.position.y = seatY + seatH / 2 + 0.004;
+chairGroup.add(pad);
+
+// === Backrest ===
+const backW = 0.38;
+const backH = 0.40;
+const backD = 0.025;
+const backY = seatY + seatH / 2 + 0.02;
+
+// Backrest support frame (curved tube going up and over)
+const backFrameGroup = new THREE.Group();
+
+// Main curved back frame using a torus section
+const frameCurveGeo = new THREE.TorusGeometry(backH / 2 + 0.02, 0.018, 8, 20, Math.PI);
+const frameCurve = new THREE.Mesh(frameCurveGeo, chairMatDark);
+frameCurve.rotation.y = Math.PI / 2;
+frameCurve.rotation.x = 0;
+frameCurve.position.set(0, backY + backH / 2, -seatD / 2 + 0.02);
+frameCurve.castShadow = true;
+backFrameGroup.add(frameCurve);
+
+// Two vertical posts connecting seat to backrest frame
+[-1, 1].forEach(side => {
+    const postGeo = new THREE.CylinderGeometry(0.014, 0.016, 0.15, 8);
+    const post = new THREE.Mesh(postGeo, chairMatDark);
+    post.position.set(side * (backW / 2 - 0.02), backY + 0.04, -seatD / 2 + 0.02);
+    post.castShadow = true;
+    backFrameGroup.add(post);
+});
+
+chairGroup.add(backFrameGroup);
+
+// Backrest mesh panel
+const backPanelGeo = new THREE.PlaneGeometry(backW - 0.05, backH - 0.06);
+const backPanel = new THREE.Mesh(backPanelGeo, meshMat);
+backPanel.position.set(0, backY + backH / 2, -seatD / 2 + 0.02);
+backPanel.castShadow = true;
+chairGroup.add(backPanel);
+
+// === Armrests ===
+const armY = seatY + 0.15;
+const armLength = 0.26;
+
+[-1, 1].forEach(side => {
+    const armX = side * (seatW / 2 - 0.01);
+
+    // Arm support (vertical)
+    const armSupportGeo = new THREE.CylinderGeometry(0.014, 0.018, 0.14, 8);
+    const armSupport = new THREE.Mesh(armSupportGeo, chairMatDark);
+    armSupport.position.set(armX, seatY + 0.07, -0.04);
+    armSupport.castShadow = true;
+    chairGroup.add(armSupport);
+
+    // Arm pad (horizontal)
+    const armPadGeo = new THREE.BoxGeometry(0.045, 0.018, armLength);
+    const armPad = new THREE.Mesh(armPadGeo, chairMat);
+    armPad.position.set(armX, armY, -0.02);
+    armPad.castShadow = true;
+    chairGroup.add(armPad);
+
+    // Arm pad end caps
+    const capGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.018, 8);
+    const capFront = new THREE.Mesh(capGeo, chairMat);
+    capFront.rotation.z = Math.PI / 2;
+    capFront.position.set(armX, armY, armLength / 2 - 0.02);
+    chairGroup.add(capFront);
+
+    const capBack = new THREE.Mesh(capGeo, chairMat);
+    capBack.rotation.z = Math.PI / 2;
+    capBack.position.set(armX, armY, -armLength / 2 - 0.02 + 0.02);
+    chairGroup.add(capBack);
+});
+
+// Position the whole chair in the room
+chairGroup.position.set(chairCX, 0, chairCZ);
+chairGroup.castShadow = true;
+
+// Add shadow for all children
+chairGroup.traverse(child => {
+    if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+    }
+});
+
+scene.add(chairGroup);
+
+// ─── TRANSMITTER MARKER ───────────────────────────────────
+const txGeo = new THREE.OctahedronGeometry(0.035, 0);
+const txMat = new THREE.MeshStandardMaterial({
+    color: 0x00ff88,
+    emissive: 0x00ff88,
+    emissiveIntensity: 0.7,
+    roughness: 0.2,
+    metalness: 0.3,
+});
+const txMarker = new THREE.Mesh(txGeo, txMat);
+txMarker.position.set(0.45, 1.2, -0.05);
+txMarker.castShadow = true;
+scene.add(txMarker);
+
+// TX label
+const txLabel = makeLabel('📡 TX', 0.45, -0.12);
+txLabel.position.y = 1.35;
+txLabel.scale.set(0.14, 0.05, 1);
+scene.add(txLabel);
+
+// TX glow
+const txGlow = new THREE.PointLight(0x00ff88, 0.5, 1.2);
+txGlow.position.copy(txMarker.position);
+scene.add(txGlow);
+
+// ─── RAYCASTING (hover tooltips) ──────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+function onMouseMove(e) {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(interactiveDots);
+
+    if (intersects.length > 0) {
+        const d = intersects[0].object.userData;
+        const level = d.rf >= 0.7 ? '🔴 High' : d.rf >= 0.35 ? '🟡 Mid' : '🔵 Low';
+        tooltip.innerHTML = `
+            <div class="grid-label">Grid [${d.row}, ${d.col}]</div>
+            <div class="coord">(${(d.col * 30)}cm, ${(d.row * 30)}cm)</div>
+            <div class="rf-val">RF Intensity: <b>${d.rf.toFixed(3)}</b> ${level}</div>
+        `;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 16) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+
+        // Highlight hovered dot
+        intersects[0].object.material.emissiveIntensity = 1.2;
+        intersects[0].object.scale.setScalar(1.5);
+        document.body.style.cursor = 'pointer';
+    } else {
+        tooltip.style.display = 'none';
+        interactiveDots.forEach(d => {
+            d.material.emissiveIntensity = 0.6;
+            d.scale.setScalar(1.0);
+        });
+        document.body.style.cursor = 'default';
+    }
+}
+window.addEventListener('mousemove', onMouseMove, false);
+
+// ─── ANIMATION LOOP ──────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+
+    // Subtle TX marker animation
+    txMarker.rotation.y = t * 0.8;
+    txMarker.position.y = 1.2 + Math.sin(t * 1.5) * 0.02;
+
+    // Pulse the dot glows subtly
+    interactiveDots.forEach((dot, i) => {
+        const phase = i * 0.3;
+        const scale = 1.0 + Math.sin(t * 1.2 + phase) * 0.05;
+        if (dot.scale.x < 1.4) { // only if not hovered
+            dot.scale.setScalar(scale);
+        }
+    });
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+animate();
+
+// ─── RESIZE ───────────────────────────────────────────────
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
 </html>

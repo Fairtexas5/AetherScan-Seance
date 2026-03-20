@@ -1,5 +1,7 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
+  "git.ignoreLimitWarning": true,
+  "python.terminal.activateEnvironment": true,
   "idf.openOcdConfigs": [
     "board/esp32-wrover-kit-3.3v.cfg"
   ],

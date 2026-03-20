@@ -14,7 +14,7 @@
 // ── YOUR HOTSPOT CREDENTIALS ────────────────────────────────────
 #define WIFI_SSID "ashes"
 #define WIFI_PASS "987654321"
-#define WIFI_CHANNEL 0  // 0 = auto-detect channel
+#define WIFI_CHANNEL 0
 
 static const char* TAG = "CSI_RX";
 static bool wifi_connected = false;
